@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sebago File Extractor</title>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+</head>
+<body>
+  <button onclick="handleAuthClick()">Login & Download Sebago Files</button>
+
+  <script>
+    const CLIENT_ID = "YOUR_CLIENT_ID.apps.googleusercontent.com"; // replace
+    const API_KEY = "YOUR_API_KEY"; // replace
+    const SCOPES = "https://www.googleapis.com/auth/drive.readonly";
+    const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+
+    let gapiInited = false;
+    let gisInited = false;
+
+    // Load auth2 and Drive API
+    function handleAuthClick() {
+      gapi.load("client:auth2", async () => {
+        await gapi.client.init({
+          apiKey: API_KEY,
+          clientId: CLIENT_ID,
+          discoveryDocs: DISCOVERY_DOCS,
+          scope: SCOPES,
+        });
+
+        const GoogleAuth = gapi.auth2.getAuthInstance();
+        GoogleAuth.signIn().then(listAndDownloadFiles);
+      });
+    }
+
+    async function listAndDownloadFiles() {
+      const res = await gapi.client.drive.files.list({
+        q: "name contains 'Sebago' and mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'",
+        fields: "files(id, name)"
+      });
+
+      const files = res.result.files;
+      if (!files || files.length === 0) {
+        alert("No matching files found.");
+        return;
+      }
+
+      const zip = new JSZip();
+
+      for (let file of files) {
+        const content = await gapi.client.drive.files.get({
+          fileId: file.id,
+          alt: "media"
+        });
+
+        zip.file(file.name, content.body);
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "Sebago_Files.zip";
+      link.click();
+    }
+  </script>
+</body>
+</html>
